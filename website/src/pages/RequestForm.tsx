@@ -22,7 +22,11 @@ function validate(data: FormData): FormErrors {
   const errors: FormErrors = {};
   if (!data.name.trim()) errors.name = "Name is required.";
   if (!data.address.trim()) errors.address = "Address is required.";
-  if (!data.phone.trim()) errors.phone = "Phone number is required.";
+  if (!data.phone.trim()) {
+    errors.phone = "Phone number is required.";
+  } else if (!/^[\d\s()+-]{7,20}$/.test(data.phone)) {
+    errors.phone = "Enter a valid phone number.";
+  }
   if (!data.email.trim()) {
     errors.email = "Email is required.";
   } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
