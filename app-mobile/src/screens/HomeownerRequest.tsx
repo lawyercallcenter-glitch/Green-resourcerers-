@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,10 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import Vapi from '@vapi-ai/react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
+import { VAPI_ASSISTANT_ID, VAPI_PUBLIC_KEY } from '../config/vapi';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'HomeownerRequest'>;
 
@@ -25,6 +27,8 @@ interface FormData {
 
 type SubmitStatus = 'idle' | 'submitting' | 'success' | 'error';
 
+type CallStatus = 'idle' | 'connecting' | 'active' | 'error';
+
 export default function HomeownerRequest({ navigation }: Props) {
   const [form, setForm] = useState<FormData>({
     name: '',
@@ -34,6 +38,40 @@ export default function HomeownerRequest({ navigation }: Props) {
     equipmentDescription: '',
   });
   const [status, setStatus] = useState<SubmitStatus>('idle');
+  const [callStatus, setCallStatus] = useState<CallStatus>('idle');
+
+  const vapiRef = useRef<Vapi | null>(null);
+
+  useEffect(() => {
+    vapiRef.current = new Vapi(VAPI_PUBLIC_KEY);
+
+    vapiRef.current.on('call-start', () => setCallStatus('active'));
+    vapiRef.current.on('call-end', () => setCallStatus('idle'));
+    vapiRef.current.on('error', () => {
+      setCallStatus('error');
+      Alert.alert('Call Error', 'The voice call encountered an error. Please try again.');
+    });
+
+    return () => {
+      vapiRef.current?.stop();
+    };
+  }, []);
+
+  const handleStartCall = async () => {
+    if (!vapiRef.current) return;
+    try {
+      setCallStatus('connecting');
+      await vapiRef.current.start(VAPI_ASSISTANT_ID);
+    } catch {
+      setCallStatus('error');
+      Alert.alert('Call Error', 'Could not start the voice call. Please check your connection.');
+    }
+  };
+
+  const handleEndCall = () => {
+    vapiRef.current?.stop();
+    setCallStatus('idle');
+  };
 
   const updateField = (field: keyof FormData, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -173,6 +211,23 @@ export default function HomeownerRequest({ navigation }: Props) {
           textAlignVertical="top"
         />
 
+        <View style={styles.divider} />
+        <Text style={styles.orText}>— or speak with our AI assistant —</Text>
+
+        {callStatus === 'idle' || callStatus === 'error' ? (
+          <TouchableOpacity style={styles.callButton} onPress={handleStartCall}>
+            <Text style={styles.callButtonText}>📞 Call Us (Voice AI)</Text>
+          </TouchableOpacity>
+        ) : callStatus === 'connecting' ? (
+          <TouchableOpacity style={[styles.callButton, styles.disabledButton]} disabled>
+            <Text style={styles.callButtonText}>Connecting…</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={[styles.callButton, styles.activeCallButton]} onPress={handleEndCall}>
+            <Text style={styles.callButtonText}>🔴 End Call</Text>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
           style={[
             styles.primaryButton,
@@ -264,6 +319,32 @@ const styles = StyleSheet.create({
   errorBannerText: {
     color: '#C62828',
     fontSize: 14,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#DDD',
+    marginVertical: 20,
+  },
+  orText: {
+    textAlign: 'center',
+    color: '#888',
+    fontSize: 13,
+    marginBottom: 12,
+  },
+  callButton: {
+    backgroundColor: '#1565C0',
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  activeCallButton: {
+    backgroundColor: '#B71C1C',
+  },
+  callButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   successIcon: {
     fontSize: 48,

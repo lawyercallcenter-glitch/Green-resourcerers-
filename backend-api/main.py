@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import Base, engine
-from routers import jobs, requests, technicians
+from routers import jobs, requests, technicians, vapi
 
 
 @asynccontextmanager
@@ -34,6 +34,7 @@ app.add_middleware(
 app.include_router(requests.router)
 app.include_router(jobs.router)
 app.include_router(technicians.router)
+app.include_router(vapi.router)
 
 
 @app.get("/")
