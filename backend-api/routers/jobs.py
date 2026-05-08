@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
 from models import Job, ServiceRequest, Technician
@@ -9,13 +10,12 @@ router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
 
 @router.post("/", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
-def create_job(payload: JobCreate, db: Session = Depends(get_db)):
+async def create_job(payload: JobCreate, db: AsyncSession = Depends(get_db)):
     # Validate that the referenced service request exists
-    service_request = (
-        db.query(ServiceRequest)
-        .filter(ServiceRequest.id == payload.request_id)
-        .first()
+    sr_result = await db.execute(
+        select(ServiceRequest).filter(ServiceRequest.id == payload.request_id)
     )
+    service_request = sr_result.scalar_one_or_none()
     if not service_request:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -23,9 +23,10 @@ def create_job(payload: JobCreate, db: Session = Depends(get_db)):
         )
 
     # Validate that the referenced technician exists and is active
-    technician = (
-        db.query(Technician).filter(Technician.id == payload.technician_id).first()
+    tech_result = await db.execute(
+        select(Technician).filter(Technician.id == payload.technician_id)
     )
+    technician = tech_result.scalar_one_or_none()
     if not technician:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -39,19 +40,21 @@ def create_job(payload: JobCreate, db: Session = Depends(get_db)):
 
     job = Job(**payload.model_dump())
     db.add(job)
-    db.commit()
-    db.refresh(job)
+    await db.commit()
+    await db.refresh(job)
     return job
 
 
 @router.get("/", response_model=list[JobResponse])
-def list_jobs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return db.query(Job).offset(skip).limit(limit).all()
+async def list_jobs(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Job).offset(skip).limit(limit))
+    return result.scalars().all()
 
 
 @router.get("/{job_id}", response_model=JobResponse)
-def get_job(job_id: int, db: Session = Depends(get_db)):
-    job = db.query(Job).filter(Job.id == job_id).first()
+async def get_job(job_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Job).filter(Job.id == job_id))
+    job = result.scalar_one_or_none()
     if not job:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -61,8 +64,9 @@ def get_job(job_id: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/{job_id}", response_model=JobResponse)
-def update_job(job_id: int, payload: JobUpdate, db: Session = Depends(get_db)):
-    job = db.query(Job).filter(Job.id == job_id).first()
+async def update_job(job_id: int, payload: JobUpdate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Job).filter(Job.id == job_id))
+    job = result.scalar_one_or_none()
     if not job:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -70,6 +74,6 @@ def update_job(job_id: int, payload: JobUpdate, db: Session = Depends(get_db)):
         )
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(job, field, value)
-    db.commit()
-    db.refresh(job)
+    await db.commit()
+    await db.refresh(job)
     return job

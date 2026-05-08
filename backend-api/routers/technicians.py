@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
 from models import Technician
@@ -11,8 +12,11 @@ router = APIRouter(prefix="/technicians", tags=["Technicians"])
 @router.post(
     "/", response_model=TechnicianResponse, status_code=status.HTTP_201_CREATED
 )
-def create_technician(payload: TechnicianCreate, db: Session = Depends(get_db)):
-    existing = db.query(Technician).filter(Technician.email == payload.email).first()
+async def create_technician(payload: TechnicianCreate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(Technician).filter(Technician.email == payload.email)
+    )
+    existing = result.scalar_one_or_none()
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -20,19 +24,23 @@ def create_technician(payload: TechnicianCreate, db: Session = Depends(get_db)):
         )
     technician = Technician(**payload.model_dump())
     db.add(technician)
-    db.commit()
-    db.refresh(technician)
+    await db.commit()
+    await db.refresh(technician)
     return technician
 
 
 @router.get("/", response_model=list[TechnicianResponse])
-def list_technicians(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return db.query(Technician).offset(skip).limit(limit).all()
+async def list_technicians(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Technician).offset(skip).limit(limit))
+    return result.scalars().all()
 
 
 @router.get("/{technician_id}", response_model=TechnicianResponse)
-def get_technician(technician_id: int, db: Session = Depends(get_db)):
-    technician = db.query(Technician).filter(Technician.id == technician_id).first()
+async def get_technician(technician_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(Technician).filter(Technician.id == technician_id)
+    )
+    technician = result.scalar_one_or_none()
     if not technician:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -42,10 +50,13 @@ def get_technician(technician_id: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/{technician_id}", response_model=TechnicianResponse)
-def update_technician(
-    technician_id: int, payload: TechnicianUpdate, db: Session = Depends(get_db)
+async def update_technician(
+    technician_id: int, payload: TechnicianUpdate, db: AsyncSession = Depends(get_db)
 ):
-    technician = db.query(Technician).filter(Technician.id == technician_id).first()
+    result = await db.execute(
+        select(Technician).filter(Technician.id == technician_id)
+    )
+    technician = result.scalar_one_or_none()
     if not technician:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -53,6 +64,6 @@ def update_technician(
         )
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(technician, field, value)
-    db.commit()
-    db.refresh(technician)
+    await db.commit()
+    await db.refresh(technician)
     return technician

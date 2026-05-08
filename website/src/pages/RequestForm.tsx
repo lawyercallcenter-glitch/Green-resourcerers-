@@ -74,7 +74,13 @@ function RequestForm() {
       const res = await fetch("/api/requests/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          homeowner_name: formData.name,
+          address: formData.address,
+          phone: formData.phone,
+          email: formData.email,
+          description: formData.description,
+        }),
       });
 
       if (!res.ok) {

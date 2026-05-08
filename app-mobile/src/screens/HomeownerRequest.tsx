@@ -64,18 +64,22 @@ export default function HomeownerRequest({ navigation }: Props) {
 
     setStatus('submitting');
 
-    // Simulate API call
     try {
-      await new Promise<void>((resolve, reject) => {
-        setTimeout(() => {
-          // Simulate 90% success rate
-          if (Math.random() > 0.1) {
-            resolve();
-          } else {
-            reject(new Error('Network error'));
-          }
-        }, 1500);
+      const res = await fetch('/api/requests/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          homeowner_name: form.name,
+          address: form.address,
+          phone: form.phone,
+          email: form.email,
+          description: form.equipmentDescription,
+        }),
       });
+
+      if (!res.ok) {
+        throw new Error(`Server responded with ${res.status}`);
+      }
 
       setStatus('success');
     } catch {
