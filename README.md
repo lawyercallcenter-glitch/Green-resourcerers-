@@ -14,6 +14,7 @@ This monorepo contains all software components for The Green Resourcerers LLC �
 ├── backend-api/    # FastAPI backend service
 ├── website/        # React/Vite public-facing website
 ├── app-mobile/     # React Native/Expo technician mobile app
+├── mcp-server/     # MCP server exposing the API as AI-assistant tools
 ├── docs/           # Project documentation
 └── README.md
 ```
@@ -29,6 +30,10 @@ Public-facing marketing and customer portal. Homeowners can learn about the serv
 ### `app-mobile/` — React Native / Expo Mobile App
 
 Field technician mobile application. Technicians receive assigned jobs, capture before/after photos, log materials recovered, and mark jobs complete. Built with **React Native** using the **Expo** managed workflow.
+
+### `mcp-server/` — MCP Server
+
+[Model Context Protocol](https://modelcontextprotocol.io) server that wraps the backend API as tools for AI assistants (e.g. Claude). Lets an AI create service requests, manage technicians, assign and update jobs — all by calling the live API.
 
 ### `docs/` — Documentation
 
@@ -80,6 +85,17 @@ npm run dev
 cd app-mobile
 npm install
 npx expo start
+```
+
+### MCP Server
+
+```bash
+cd mcp-server
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env   # set API_BASE_URL if needed
+python server.py
 ```
 
 ### Documentation
