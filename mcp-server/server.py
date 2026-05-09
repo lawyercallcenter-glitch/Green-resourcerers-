@@ -5,6 +5,7 @@ Exposes the backend REST API as MCP tools so AI assistants can manage
 service requests, technicians, and jobs.
 """
 
+import atexit
 import os
 
 import httpx
@@ -18,6 +19,7 @@ API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 mcp = FastMCP("Green Resourcerers")
 
 _client = httpx.Client(base_url=API_BASE_URL, timeout=30)
+atexit.register(_client.close)
 
 
 # ---------------------------------------------------------------------------
